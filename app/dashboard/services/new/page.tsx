@@ -1,48 +1,74 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import Image from "next/image";
-import Link from "next/link";
-import { FilePlus } from "lucide-react";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod"; // Import Zod
 
-export default async function MyServicesPage() {
-    const session = await auth();
-    if (!session?.user) return null;
+// Define the schema for our form using Zod
+const ServiceSchema = z.object({
+  name: z.string().min(3, { message: "Service name must be at least 3 characters long." }),
+  category: z.string().min(1, { message: "Category is required." }),
+  description: z.string().min(10, { message: "Description must be at least 10 characters long." }),
+});
 
-    const supplierProfile = await prisma.supplier.findUnique({
-        where: { userId: session.user.id }
-    });
+export default function NewServicePage() {
+
+  async function createServiceAction(formData: FormData) {
+    "use server";
     
-    return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold">Manage Your Service</h1>
-                {supplierProfile && (
-                     <Link href={`/dashboard/services/${supplierProfile.id}/edit`} className="bg-blue-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
-                        Edit Service
-                    </Link>
-                )}
-            </div>
+    const session = await auth();
+    if (!session || session.user.role !== 'SUPPLIER') {
+      throw new Error("Unauthorized"); 
+    }
 
-            {supplierProfile ? (
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <div className="flex flex-col sm:flex-row gap-6">
-                        <div className="relative h-40 w-full sm:w-1/3 rounded-lg overflow-hidden">
-                            <Image src={supplierProfile.imageUrl || '/default-image.jpg'} alt={supplierProfile.name} fill style={{objectFit: 'cover'}} />
-                        </div>
-                        <div className="flex-1">
-                            <h2 className="text-2xl font-bold">{supplierProfile.name}</h2>
-                            <p className="text-gray-500">{supplierProfile.category}</p>
-                            <p className="mt-4 text-gray-700">{supplierProfile.description}</p>
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                 <Link href="/dashboard/services/new" className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-col items-center justify-center text-center border-2 border-dashed">
-                    <FilePlus className="h-10 w-10 text-gray-400 mb-3" />
-                    <h3 className="text-lg font-bold">Create Your Service Profile</h3>
-                    <p className="text-sm text-gray-500">Get started by listing your service.</p>
-                </Link>
-            )}
+    // Convert formData to a plain object
+    const formObject = Object.fromEntries(formData.entries());
+
+    // Validate the form data against the Zod schema
+    const validated = ServiceSchema.safeParse(formObject);
+
+    // If validation fails, handle the errors (in a real app, you'd return these to the form)
+    if (!validated.success) {
+      console.error("Validation failed:", validated.error.flatten().fieldErrors);
+      // For now, we'll just throw an error. In a future step, we can display these errors on the form.
+      throw new Error("Invalid form data provided.");
+    }
+
+    // If validation succeeds, use the validated data to create the service
+    await prisma.supplier.create({
+      data: {
+        name: validated.data.name,
+        category: validated.data.category,
+        description: validated.data.description,
+        userId: session.user.id,
+      },
+    });
+
+    revalidatePath("/browse");
+    revalidatePath("/dashboard/services"); // Revalidate the new services page
+    redirect("/dashboard/services"); // Redirect to the new services page
+  }
+
+  return (
+    <div>
+      <h1 className="text-3xl font-bold mb-6">Add a New Service</h1>
+      <form action={createServiceAction} className="bg-white p-8 rounded-lg shadow-md w-full">
+        <div className="mb-4">
+          <label htmlFor="name" className="block text-gray-700 font-bold mb-2">Service Name</label>
+          <input type="text" id="name" name="name" className="w-full px-3 py-2 border rounded-lg" required />
         </div>
-    )
+        <div className="mb-4">
+          <label htmlFor="category" className="block text-gray-700 font-bold mb-2">Category</label>
+          <input type="text" id="category" name="category" className="w-full px-3 py-2 border rounded-lg" required placeholder="e.g., Catering, Photography" />
+        </div>
+        <div className="mb-6">
+          <label htmlFor="description" className="block text-gray-700 font-bold mb-2">Description</label>
+          <textarea id="description" name="description" rows={4} className="w-full px-3 py-2 border rounded-lg" required />
+        </div>
+        <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700">
+          Create Service
+        </button>
+      </form>
+    </div>
+  );
 }

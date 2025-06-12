@@ -40,7 +40,7 @@ export default function CheckoutPage({ params }: { params: { bookingId: string }
         <div className="border rounded-lg p-4 mb-6">
             <h2 className="text-lg font-semibold">Booking Summary</h2>
             <p className="text-gray-600">Placeholder for Supplier Name</p>
-            <p className="text-gray-600">Placeholder for Event Date</p>
+            <p className="text-gray-600">Placeholder for Event Date</p> 
             <div className="text-2xl font-bold mt-4">Deposit: £20.00</div>
         </div>
 

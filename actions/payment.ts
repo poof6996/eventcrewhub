@@ -10,7 +10,7 @@ export async function createCheckoutSessionAction(bookingId: number) {
   if (!session?.user) throw new Error("Authentication required");
 
   const booking = await prisma.booking.findUnique({
-    where: { id: bookingId, customerId: session.user.id },
+    where: { id: bookingId, customerId: parseInt(session.user.id) },
     include: { supplier: true },
   });
 

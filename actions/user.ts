@@ -9,7 +9,7 @@ export async function toggleSaveSupplier(supplierId: number) {
   if (!session?.user?.id) {
     throw new Error("Authentication required.");
   }
-  const userId = session.user.id;
+  const userId = parseInt(session.user.id);
 
   // Check if the user has already saved this supplier
   const existingSavedSupplier = await prisma.user.findFirst({

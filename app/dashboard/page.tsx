@@ -1,74 +1,58 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Briefcase, CalendarCheck, Star } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { FilePlus } from "lucide-react";
 
-export default async function DashboardPage() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== 'SUPPLIER') return null;
+export default async function MyServicesPage() {
+    const session = await auth();
+    if (!session?.user) return null;
 
-  // Fetch all necessary data in one go
-  const supplierData = await prisma.supplier.findUnique({
-    where: { userId: session.user.id },
-    include: {
-      bookings: true, // Include bookings to get a count
-      Review: { // Include reviews to get a count
-        select: { id: true }
-      },
-    }
-  });
-
-  const totalBookings = supplierData?.bookings.length || 0;
-  const pendingBookings = supplierData?.bookings.filter(b => b.status === 'PENDING').length || 0;
-  const totalReviews = supplierData?.Review.length || 0;
-
-  return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Overview</h1>
-        <p className="text-gray-600">Here's a summary of your activity.</p>
-      </div>
-
-      {/* --- Key Metric Cards --- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center">
-            <div className="bg-blue-100 text-blue-600 p-3 rounded-full">
-              <CalendarCheck className="h-6 w-6" />
+    // We find the single service profile linked to the user
+    const supplierProfile = await prisma.supplier.findUnique({
+        where: { userId: session.user.id }
+    });
+    
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold">Manage Your Service</h1>
+                {/* Show Edit button only if a profile exists */}
+                {supplierProfile && (
+                     <Link href={`/dashboard/services/${supplierProfile.id}/edit`} className="bg-blue-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+                        Edit Service
+                    </Link>
+                )}
             </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-500">Total Bookings</p>
-              <p className="text-2xl font-bold">{totalBookings}</p>
-            </div>
-          </div>
+
+            {supplierProfile ? (
+                // Display the service card if it exists
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                    <div className="flex flex-col sm:flex-row gap-6">
+                        <div className="relative h-40 w-full sm:w-1/3 rounded-lg overflow-hidden bg-gray-100">
+                            <Image 
+                                src={supplierProfile.imageUrl || '/default-image.jpg'} 
+                                alt={supplierProfile.name} 
+                                fill 
+                                style={{objectFit: 'cover'}} 
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <h2 className="text-2xl font-bold">{supplierProfile.name}</h2>
+                            <p className="text-gray-500 mb-2">{supplierProfile.category}</p>
+                            <p className="mt-4 text-gray-700">{supplierProfile.description}</p>
+                            {/* We can add pricing info here later */}
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                // Show a prompt to create a profile if one doesn't exist
+                 <Link href="/dashboard/services/new" className="bg-white p-10 rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-col items-center justify-center text-center border-2 border-dashed">
+                    <FilePlus className="h-10 w-10 text-gray-400 mb-3" />
+                    <h3 className="text-lg font-bold">Create Your Service Profile</h3>
+                    <p className="text-sm text-gray-500">Get started by listing your service.</p>
+                </Link>
+            )}
         </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-           <div className="flex items-center">
-            <div className="bg-yellow-100 text-yellow-600 p-3 rounded-full">
-              <Briefcase className="h-6 w-6" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-500">Pending Requests</p>
-              <p className="text-2xl font-bold">{pendingBookings}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-           <div className="flex items-center">
-            <div className="bg-green-100 text-green-600 p-3 rounded-full">
-              <Star className="h-6 w-6" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-500">Total Reviews</p>
-              <p className="text-2xl font-bold">{totalReviews}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-10 bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold mb-4">Next Steps</h2>
-          <p className="text-gray-600">Use the menu on the left to manage your services, view booking details, and respond to messages.</p>
-      </div>
-    </div>
-  );
+    )
 }
