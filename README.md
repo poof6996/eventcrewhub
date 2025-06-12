@@ -1,6 +1,6 @@
 # EventCrewHub
 
-A modern Next.js web app for event booking, inspired by poptop.uk.com.
+A modern Next.js web app for event booking, 
 
 ## Features
 - Modern UI with Tailwind CSS
