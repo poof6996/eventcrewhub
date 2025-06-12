@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  SUPPLIER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  PAID
+}
+
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  name        String
+  category    String
+  description String?
+  imageUrl    String?  @map("image_url")
+  
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int      @unique
+
+  bookings    Booking[]
+  Review      Review[]
+  savedBy     User[]   @relation("SavedSuppliers")
+
+  // New relations for this feature
+  galleryImages GalleryImage[]
+  pricingTiers  PricingTier[]
+
+  @@map("suppliers")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  role      Role     @default(CUSTOMER)
+
+  passwordResetToken         String?   @unique
+  passwordResetTokenExpires  DateTime?
+
+  supplier       Supplier?
+  bookings       Booking[]
+  reviews        Review[]
+  savedSuppliers Supplier[] @relation("SavedSuppliers")
+  
+  conversationsAsParticipantOne Conversation[] @relation("ParticipantOne")
+  conversationsAsParticipantTwo Conversation[] @relation("ParticipantTwo")
+  sentMessages                Message[]      @relation("Sender")
+
+  @@map("users")
+}
+
+// ... (Booking, Review, Conversation, and Message models remain the same)
+model Booking {
+  id Int @id @default(autoincrement())
+  eventDate DateTime
+  guestCount Int
+  message String?
+  status BookingStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  customer User @relation(fields: [customerId], references: [id])
+  customerId Int
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  supplierId Int
+  @@map("bookings")
+}
+model Review {
+  id         Int      @id @default(autoincrement())
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  author     User     @relation(fields: [authorId], references: [id])
+  authorId   Int
+
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  supplierId Int
+
+  @@map("reviews")
+}
+model Conversation {
+  id Int @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  participantOne User @relation("ParticipantOne", fields: [participantOneId], references: [id])
+  participantOneId Int
+  participantTwo User @relation("ParticipantTwo", fields: [participantTwoId], references: [id])
+  participantTwoId Int
+  messages Message[]
+  @@map("conversations")
+}
+model Message {
+  id Int @id @default(autoincrement())
+  content String
+  createdAt DateTime @default(now())
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  conversationId Int
+  sender User @relation("Sender", fields: [senderId], references: [id])
+  senderId Int
+  @@map("messages")
+}
+
+
+// --- New Models for Service Page ---
+
+model GalleryImage {
+  id         Int      @id @default(autoincrement())
+  url        String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  supplierId Int
+
+  @@map("gallery_images")
+}
+
+model PricingTier {
+  id          Int     @id @default(autoincrement())
+  name        String  // e.g., "Basic Package", "Premium Package"
+  price       Float   // The price for this tier
+  description String
+  features    String[] // A list of features included in this tier
+
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  supplierId  Int
+
+  @@map("pricing_tiers")
+}
