@@ -7,8 +7,11 @@ declare global {
 
 // Create a new PrismaClient instance if one doesn't already exist in the global scope.
 // This prevents creating multiple instances during hot-reloading in development.
-export const prisma = global.prisma || new PrismaClient();
+const client = global.prisma || new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma;
+  global.prisma = client;
 }
+
+// ✅ Export the instance as a named export
+export const prisma = client;

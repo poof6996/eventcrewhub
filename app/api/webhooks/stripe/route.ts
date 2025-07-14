@@ -1,37 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
-import { prisma } from '@/lib/prisma';
-import Stripe from 'stripe';
+// app/api/stripe/webhook/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { stripe } from '@/lib/stripe'
+import { db } from '@/lib/prisma'
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
 export async function POST(req: NextRequest) {
-  const buf = await req.text();
-  const sig = req.headers.get('stripe-signature')!;
+  const body = await req.text()
+  const sig = req.headers.get('stripe-signature')!
 
-  let event: Stripe.Event;
+  let event
 
   try {
-    event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
+    event = stripe.webhooks.constructEvent(body, sig, endpointSecret)
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    console.log(`❌ Error message: ${errorMessage}`);
-    return NextResponse.json({ error: `Webhook Error: ${errorMessage}` }, { status: 400 });
+    console.error('Webhook Error:', err)
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  // Handle the 'checkout.session.completed' event
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const bookingId = session.metadata?.bookingId;
+    const session = event.data.object as Stripe.Checkout.Session
 
-    if (bookingId) {
-      // Update the booking status in your database
-      await prisma.booking.update({
-        where: { id: parseInt(bookingId) },
-        data: { status: 'PAID' },
-      });
+    const userId = session.metadata?.userId
+    const serviceId = session.metadata?.serviceId
+    const date = session.metadata?.date
+    const stripeSessionId = session.id
+
+    if (!userId || !serviceId || !date) {
+      console.error('Missing metadata')
+      return NextResponse.json({}, { status: 400 })
+    }
+
+    // Prevent duplicate booking
+    const existing = await db.booking.findFirst({
+      where: { stripeSessionId },
+    })
+
+    if (!existing) {
+      await db.booking.create({
+        data: {
+          userId,
+          serviceId,
+          date: new Date(date),
+          stripeSessionId,
+          status: 'CONFIRMED',
+        },
+      })
     }
   }
 
-  return NextResponse.json({ received: true });
+  return NextResponse.json({ received: true })
 }

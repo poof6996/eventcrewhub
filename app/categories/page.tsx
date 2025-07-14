@@ -1,95 +1,75 @@
-import React from 'react';
+// app/categories/page.tsx
 
-const categories = [
-	{
-		name: 'Music & Bands',
-		description: 'Live bands, DJs, and musicians for every event.',
-		icon: '/file.svg',
-	},
-	{
-		name: 'Catering',
-		description: 'Gourmet food, drinks, and desserts.',
-		icon: '/globe.svg',
-	},
-	{
-		name: 'Photography',
-		description: 'Professional photographers and photo booths.',
-		icon: '/window.svg',
-	},
-	{
-		name: 'Entertainers',
-		description: 'Magicians, dancers, comedians, and more.',
-		icon: '/vercel.svg',
-	},
-	{
-		name: 'Venues',
-		description: 'Unique spaces for every occasion.',
-		icon: '/next.svg',
-	},
-];
+import Link from 'next/link';
+import prisma from '@/lib/prisma';
 
-export default function CategoriesPage() {
-	return (
-		<main className="p-8 max-w-5xl mx-auto">
-			<h1 className="text-4xl font-bold mb-4 text-center">
-				Event Categories
-			</h1>
-			<p className="mb-8 text-lg text-center text-gray-600">
-				Discover top-rated suppliers and services for every type of event.
-			</p>
-			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-12">
-				{categories.map((cat, i) => (
-					<div
-						key={i}
-						className="bg-white rounded-xl shadow hover:shadow-lg transition-shadow p-6 flex flex-col items-center text-center group cursor-pointer"
-					>
-						<img
-							src={cat.icon}
-							alt={cat.name}
-							className="w-16 h-16 mb-4 group-hover:scale-110 transition-transform drop-shadow-md"
-						/>
-						<h2 className="text-xl font-semibold mb-2 group-hover:text-blue-700 transition-colors">
-							{cat.name}
-						</h2>
-						<p className="text-gray-500 mb-2 group-hover:text-gray-700 transition-colors">
-							{cat.description}
-						</p>
-						<a
-							href="/register?supplier=true"
-							className="mt-2 text-blue-600 font-medium underline hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded transition"
-							aria-label={`Become a supplier in ${cat.name}`}
-						>
-							Become a Supplier
-						</a>
-						{/* Micro-interaction: feedback on click */}
-						<span className="hidden group-active:inline-block text-green-600 text-sm mt-1">
-							Thank you for your interest!
-						</span>
-					</div>
-				))}
-			</div>
-			<div className="bg-blue-50 rounded-xl p-8 text-center mt-8 animate-fade-in">
-				<h2 className="text-2xl font-bold mb-2">
-					Are you a customer or supplier?
-				</h2>
-				<p className="mb-4 text-gray-700">
-					Join our platform to book amazing services or grow your business.
-				</p>
-				<div className="flex flex-col sm:flex-row justify-center gap-4">
-					<a
-						href="/register?customer=true"
-						className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-					>
-						Register as Customer
-					</a>
-					<a
-						href="/register?supplier=true"
-						className="bg-white border border-blue-600 text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-					>
-						Register as Supplier 
-					</a>
-				</div>
-			</div>
-		</main>
-	);
+// The page is now an async function to allow for data fetching
+export default async function CategoriesPage() {
+  
+  // Fetch categories from the database within a try/catch block for error handling
+  let categories = [];
+  try {
+    categories = await prisma.category.findMany();
+  } catch (error) {
+    console.error("Failed to fetch categories:", error);
+    // You can render an error message to the user if fetching fails
+    return <p className="text-center text-red-500">Could not load categories. Please try again later.</p>;
+  }
+
+  return (
+    <div className="bg-white">
+      <div className="py-16 sm:py-24 xl:mx-auto xl:max-w-7xl xl:px-8">
+        <div className="px-4 sm:flex sm:items-center sm:justify-between sm:px-6 lg:px-8 xl:px-0">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900">Browse by Category</h2>
+          <Link href="/browse" className="hidden text-sm font-semibold text-indigo-600 hover:text-indigo-500 sm:block">
+            Browse all suppliers
+            <span aria-hidden="true"> &rarr;</span>
+          </Link>
+        </div>
+
+        <div className="mt-4 flow-root">
+          <div className="-my-2">
+            <div className="relative box-content h-80 overflow-x-auto py-2 xl:overflow-visible">
+              {/* Check if there are categories to display */}
+              {categories.length > 0 ? (
+                <div className="min-w-screen-xl absolute flex space-x-8 px-4 sm:px-6 lg:px-8 xl:relative xl:grid xl:grid-cols-5 xl:gap-x-8 xl:space-x-0 xl:px-0">
+                  {/* Map over the dynamic categories from the database */}
+                  {categories.map((category) => (
+                    <Link
+                      key={category.id} // Use the unique ID from the database as the key
+                      // Link to the browse page with a query parameter for the category
+                      href={`/browse?category=${encodeURIComponent(category.name)}`}
+                      className="relative flex h-80 w-56 flex-col overflow-hidden rounded-lg p-6 hover:opacity-75 xl:w-auto"
+                    >
+                      <span aria-hidden="true" className="absolute inset-0">
+                        {/* The image source remains dynamic based on the category name */}
+                        <img src={`https://source.unsplash.com/featured/?${category.name},event`} alt="" className="h-full w-full object-cover object-center" />
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-gray-800 opacity-50"
+                      />
+                      <span className="relative mt-auto text-center text-xl font-bold text-white">{category.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                // Display a message if no categories are found in the database
+                <div className="text-center w-full py-10">
+                  <p>No categories found.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 px-4 sm:hidden">
+          <Link href="/browse" className="block text-sm font-semibold text-indigo-600 hover:text-indigo-500">
+            Browse all suppliers
+            <span aria-hidden="true"> &rarr;</span>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
 }
